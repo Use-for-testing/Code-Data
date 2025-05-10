@@ -1,0 +1,4 @@
+# Generated directories and files
+code_by_language/
+temp_repos/
+*.log
