@@ -32,6 +32,30 @@ DESIRED_LANGUAGES = [
     "Ruby", "JavaScript", "TypeScript", "Luau"
 ]
 
+# Language mapping for normalization
+LANGUAGE_MAPPING = {
+    "Cpp": "C++", 
+    "JavaScript": "JavaScript", 
+    "TypeScript": "TypeScript",
+    "ObjectiveC": "Objective-C", 
+    "CSharp": "C#"
+}
+
+# File extensions for each language
+LANGUAGE_EXTENSIONS = {
+    "Swift": [".swift"],
+    "Python": [".py", ".pyx", ".pyw"],
+    "Lua": [".lua"],
+    "C": [".c", ".h"],
+    "C++": [".cpp", ".cc", ".cxx", ".hpp", ".hxx", ".h"],
+    "Objective-C": [".m", ".mm"],
+    "C#": [".cs"],
+    "Ruby": [".rb"],
+    "JavaScript": [".js", ".jsx", ".mjs"],
+    "TypeScript": [".ts", ".tsx"],
+    "Luau": [".luau"]
+}
+
 # Output directory for code files
 OUTPUT_BASE_DIR = "code_by_language"
 os.makedirs(OUTPUT_BASE_DIR, exist_ok=True)
@@ -66,6 +90,80 @@ def get_safe_filename(path, content, lang):
         logger.error(f"Error generating safe filename for {path}: {e}")
         return f"{hashlib.md5(content.encode()).hexdigest()}.txt"
 
+def create_sample_files():
+    """Create sample files for each language when dataset access fails."""
+    logger.info("Creating sample files for each language...")
+    
+    # Sample code snippets for each language
+    samples = {
+        "Python": [
+            "def hello_world():\n    print('Hello, World!')\n\nif __name__ == '__main__':\n    hello_world()",
+            "class Person:\n    def __init__(self, name, age):\n        self.name = name\n        self.age = age\n\n    def greet(self):\n        return f'Hello, my name is {self.name} and I am {self.age} years old.'"
+        ],
+        "JavaScript": [
+            "function helloWorld() {\n    console.log('Hello, World!');\n}\n\nhelloWorld();",
+            "class Person {\n    constructor(name, age) {\n        this.name = name;\n        this.age = age;\n    }\n\n    greet() {\n        return `Hello, my name is ${this.name} and I am ${this.age} years old.`;\n    }\n}"
+        ],
+        "TypeScript": [
+            "function helloWorld(): void {\n    console.log('Hello, World!');\n}\n\nhelloWorld();",
+            "class Person {\n    name: string;\n    age: number;\n\n    constructor(name: string, age: number) {\n        this.name = name;\n        this.age = age;\n    }\n\n    greet(): string {\n        return `Hello, my name is ${this.name} and I am ${this.age} years old.`;\n    }\n}"
+        ],
+        "C++": [
+            "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, World!\" << std::endl;\n    return 0;\n}",
+            "#include <string>\n#include <iostream>\n\nclass Person {\nprivate:\n    std::string name;\n    int age;\n\npublic:\n    Person(std::string name, int age) : name(name), age(age) {}\n\n    std::string greet() {\n        return \"Hello, my name is \" + name + \" and I am \" + std::to_string(age) + \" years old.\";\n    }\n};"
+        ],
+        "C": [
+            "#include <stdio.h>\n\nint main() {\n    printf(\"Hello, World!\\n\");\n    return 0;\n}",
+            "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct {\n    char* name;\n    int age;\n} Person;\n\nPerson* create_person(const char* name, int age) {\n    Person* p = malloc(sizeof(Person));\n    p->name = strdup(name);\n    p->age = age;\n    return p;\n}"
+        ],
+        "Swift": [
+            "func helloWorld() {\n    print(\"Hello, World!\")\n}\n\nhelloWorld()",
+            "class Person {\n    let name: String\n    let age: Int\n\n    init(name: String, age: Int) {\n        self.name = name\n        self.age = age\n    }\n\n    func greet() -> String {\n        return \"Hello, my name is \\(name) and I am \\(age) years old.\"\n    }\n}"
+        ],
+        "Ruby": [
+            "def hello_world\n  puts 'Hello, World!'\nend\n\nhello_world",
+            "class Person\n  attr_reader :name, :age\n\n  def initialize(name, age)\n    @name = name\n    @age = age\n  end\n\n  def greet\n    \"Hello, my name is #{@name} and I am #{@age} years old.\"\n  end\nend"
+        ],
+        "C#": [
+            "using System;\n\nclass Program {\n    static void Main() {\n        Console.WriteLine(\"Hello, World!\");\n    }\n}",
+            "using System;\n\npublic class Person {\n    public string Name { get; }\n    public int Age { get; }\n\n    public Person(string name, int age) {\n        Name = name;\n        Age = age;\n    }\n\n    public string Greet() {\n        return $\"Hello, my name is {Name} and I am {Age} years old.\";\n    }\n}"
+        ],
+        "Lua": [
+            "function hello_world()\n    print(\"Hello, World!\")\nend\n\nhello_world()",
+            "Person = {}\nPerson.__index = Person\n\nfunction Person.new(name, age)\n    local self = setmetatable({}, Person)\n    self.name = name\n    self.age = age\n    return self\nend\n\nfunction Person:greet()\n    return string.format(\"Hello, my name is %s and I am %d years old.\", self.name, self.age)\nend"
+        ],
+        "Objective-C": [
+            "#import <Foundation/Foundation.h>\n\nint main(int argc, const char * argv[]) {\n    @autoreleasepool {\n        NSLog(@\"Hello, World!\");\n    }\n    return 0;\n}",
+            "#import <Foundation/Foundation.h>\n\n@interface Person : NSObject\n\n@property (nonatomic, strong) NSString *name;\n@property (nonatomic, assign) NSInteger age;\n\n- (instancetype)initWithName:(NSString *)name age:(NSInteger)age;\n- (NSString *)greet;\n\n@end\n\n@implementation Person\n\n- (instancetype)initWithName:(NSString *)name age:(NSInteger)age {\n    self = [super init];\n    if (self) {\n        _name = name;\n        _age = age;\n    }\n    return self;\n}\n\n- (NSString *)greet {\n    return [NSString stringWithFormat:@\"Hello, my name is %@ and I am %ld years old.\", _name, (long)_age];\n}\n\n@end"
+        ],
+        "Luau": [
+            "local function helloWorld()\n    print(\"Hello, World!\")\nend\n\nhelloWorld()",
+            "local Person = {}\nPerson.__index = Person\n\nfunction Person.new(name: string, age: number)\n    local self = setmetatable({}, Person)\n    self.name = name\n    self.age = age\n    return self\nend\n\nfunction Person:greet(): string\n    return string.format(\"Hello, my name is %s and I am %d years old.\", self.name, self.age)\nend\n\nreturn Person"
+        ]
+    }
+    
+    # Create sample files for each language
+    for language, code_samples in samples.items():
+        if language in DESIRED_LANGUAGES and files_saved[language] < MAX_FILES_PER_LANGUAGE:
+            # Get file extension for the language
+            ext = LANGUAGE_EXTENSIONS.get(language, [".txt"])[0]
+            
+            # Create sample files
+            for i, code in enumerate(code_samples):
+                safe_filename = f"sample_{i+1}_{hashlib.md5(code.encode()).hexdigest()[:8]}{ext}"
+                output_path = os.path.join(OUTPUT_BASE_DIR, language, safe_filename)
+                
+                # Skip if file already exists
+                if os.path.exists(output_path):
+                    continue
+                
+                # Save file
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    f.write(code)
+                
+                files_saved[language] += 1
+                logger.info(f"Created sample file: {output_path} (Total: {files_saved[language]})")
+
 # Verify dataset availability
 try:
     logger.info("Checking dataset availability...")
@@ -79,6 +177,8 @@ try:
     logger.info("Dataset access verified: Successfully accessed bigcode/the-stack-v2")
 except Exception as e:
     logger.error(f"Cannot access dataset: {e}")
+    logger.warning("Will create sample files instead.")
+    create_sample_files()
     exit(1)
 
 # Check network connectivity
@@ -98,6 +198,8 @@ try:
     logger.info("Successfully loaded dataset in streaming mode")
 except Exception as e:
     logger.error(f"Failed to load dataset: {e}")
+    logger.warning("Creating sample files instead...")
+    create_sample_files()
     exit(1)
 
 # Iterate over dataset and filter by language
@@ -117,10 +219,7 @@ try:
             language = "Luau"
 
         # Normalize language names to match DESIRED_LANGUAGES
-        language = {
-            "Cpp": "C++", "JavaScript": "JavaScript", "TypeScript": "TypeScript",
-            "ObjectiveC": "Objective-C", "CSharp": "C#"
-        }.get(language, language)
+        language = LANGUAGE_MAPPING.get(language, language)
 
         if language in DESIRED_LANGUAGES and files_saved[language] < MAX_FILES_PER_LANGUAGE:
             if not content or not path or not content.strip():
@@ -152,6 +251,10 @@ try:
 
 except Exception as e:
     logger.error(f"Error processing dataset: {e}")
+    # If we failed to process the dataset, create sample files
+    if all(count == 0 for count in files_saved.values()):
+        logger.warning("No files processed from dataset. Creating sample files...")
+        create_sample_files()
     exit(1)
 
 # Final summary
