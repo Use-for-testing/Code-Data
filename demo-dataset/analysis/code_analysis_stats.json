@@ -1,0 +1,212 @@
+{
+  "total_samples": 10,
+  "languages": {
+    "Python": 5,
+    "Batch": 1,
+    "Shell": 2,
+    "Markdown": 2
+  },
+  "top_languages": {
+    "Python": 5,
+    "Shell": 2,
+    "Markdown": 2,
+    "Batch": 1
+  },
+  "avg_file_size_bytes": 13402.4,
+  "avg_line_count": 364.2,
+  "code_types": {
+    "function": 2,
+    "unknown": 5,
+    "class": 3
+  },
+  "language_stats": {
+    "Python": {
+      "count": 5,
+      "avg_size": 24219.4,
+      "avg_lines": 633.8,
+      "file_paths": [
+        "Training/Hf-Train-Script.py",
+        "Scripts/analyze_code_dataset.py",
+        "Training/Train-Phi3-2bit.py",
+        "Training/Train-Phi3-4bit.py",
+        "Scripts/extract_code_samples.py"
+      ]
+    },
+    "Batch": {
+      "count": 1,
+      "avg_size": 2334.0,
+      "avg_lines": 102.0,
+      "file_paths": [
+        "Scripts/run_extraction_and_analysis.bat"
+      ]
+    },
+    "Shell": {
+      "count": 2,
+      "avg_size": 2347.5,
+      "avg_lines": 85.0,
+      "file_paths": [
+        "Scripts/setup_toolkit_in_repo.sh",
+        "Scripts/run_extraction_and_analysis.sh"
+      ]
+    },
+    "Markdown": {
+      "count": 2,
+      "avg_size": 2949.0,
+      "avg_lines": 100.5,
+      "file_paths": [
+        "Scripts/README.md",
+        "Scripts/example_workflow.md"
+      ]
+    }
+  },
+  "largest_files": [
+    [
+      "Training/Train-Phi3-2bit.py",
+      41589,
+      "Python"
+    ],
+    [
+      "Training/Train-Phi3-4bit.py",
+      32515,
+      "Python"
+    ],
+    [
+      "Scripts/analyze_code_dataset.py",
+      24959,
+      "Python"
+    ],
+    [
+      "Scripts/extract_code_samples.py",
+      13716,
+      "Python"
+    ],
+    [
+      "Training/Hf-Train-Script.py",
+      8318,
+      "Python"
+    ],
+    [
+      "Scripts/example_workflow.md",
+      3441,
+      "Markdown"
+    ],
+    [
+      "Scripts/README.md",
+      2457,
+      "Markdown"
+    ],
+    [
+      "Scripts/setup_toolkit_in_repo.sh",
+      2349,
+      "Shell"
+    ],
+    [
+      "Scripts/run_extraction_and_analysis.sh",
+      2346,
+      "Shell"
+    ],
+    [
+      "Scripts/run_extraction_and_analysis.bat",
+      2334,
+      "Batch"
+    ]
+  ],
+  "most_complex_files": [
+    [
+      "Training/Train-Phi3-2bit.py",
+      1041,
+      "Python"
+    ],
+    [
+      "Training/Train-Phi3-4bit.py",
+      808,
+      "Python"
+    ],
+    [
+      "Scripts/analyze_code_dataset.py",
+      712,
+      "Python"
+    ],
+    [
+      "Scripts/extract_code_samples.py",
+      374,
+      "Python"
+    ],
+    [
+      "Training/Hf-Train-Script.py",
+      234,
+      "Python"
+    ],
+    [
+      "Scripts/example_workflow.md",
+      123,
+      "Markdown"
+    ],
+    [
+      "Scripts/run_extraction_and_analysis.bat",
+      102,
+      "Batch"
+    ],
+    [
+      "Scripts/run_extraction_and_analysis.sh",
+      95,
+      "Shell"
+    ],
+    [
+      "Scripts/README.md",
+      78,
+      "Markdown"
+    ],
+    [
+      "Scripts/setup_toolkit_in_repo.sh",
+      75,
+      "Shell"
+    ]
+  ],
+  "analysis_timestamp": "2025-05-11T21:41:34.441148",
+  "original_metadata": {
+    "dataset_name": "GitHub Code Samples",
+    "description": "A dataset of code samples extracted from a GitHub repository",
+    "creation_date": "2025-05-11T21:41:20.746933",
+    "total_samples": 10,
+    "languages": {
+      "Python": 5,
+      "Markdown": 2,
+      "Shell": 2,
+      "Batch": 1
+    },
+    "extraction_parameters": {
+      "min_lines": 5,
+      "max_samples_per_language": 5,
+      "included_directories": "all",
+      "excluded_directories": [
+        "logs",
+        ".next",
+        ".venv",
+        ".idea",
+        ".coverage",
+        "env",
+        "venv",
+        "obj",
+        "temp",
+        "dist",
+        "node_modules",
+        ".github",
+        ".DS_Store",
+        ".vscode",
+        "tmp",
+        "log",
+        ".env",
+        "bin",
+        "__pycache__",
+        "coverage",
+        ".git",
+        "build",
+        "target",
+        "out"
+      ],
+      "included_languages": "all",
+      "excluded_languages": []
+    }
+  }
+}

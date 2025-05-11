@@ -1,0 +1,15 @@
+{
+  "language": "Batch",
+  "samples": [
+    {
+      "language": "Batch",
+      "file_path": "Scripts/run_extraction_and_analysis.bat",
+      "content": "@echo off\nSETLOCAL EnableDelayedExpansion\n\necho GitHub Code Extraction and Analysis Suite\necho =========================================\n\nREM Default values\nSET REPO_PATH=.\nSET OUTPUT_DIR=.\\dataset\nSET MIN_LINES=5\nSET MAX_SAMPLES=1000\nSET EXPORT_FORMAT=all\n\nREM Parse command line arguments\n:parse_args\nIF \"%~1\"==\"\" GOTO end_parse_args\nIF \"%~1\"==\"--repo-path\" (\n    SET REPO_PATH=%~2\n    SHIFT\n    SHIFT\n    GOTO parse_args\n)\nIF \"%~1\"==\"--output\" (\n    SET OUTPUT_DIR=%~2\n    SHIFT\n    SHIFT\n    GOTO parse_args\n)\nIF \"%~1\"==\"--min-lines\" (\n    SET MIN_LINES=%~2\n    SHIFT\n    SHIFT\n    GOTO parse_args\n)\nIF \"%~1\"==\"--max-samples\" (\n    SET MAX_SAMPLES=%~2\n    SHIFT\n    SHIFT\n    GOTO parse_args\n)\nIF \"%~1\"==\"--export-format\" (\n    SET EXPORT_FORMAT=%~2\n    SHIFT\n    SHIFT\n    GOTO parse_args\n)\nECHO Unknown argument: %~1\nEXIT /B 1\n\n:end_parse_args\n\nREM Create the output directory if it doesn't exist\nIF NOT EXIST \"%OUTPUT_DIR%\" MKDIR \"%OUTPUT_DIR%\"\n\necho.\necho Step 1: Installing required dependencies\necho ---------------------------------------\nWHERE pip >nul 2>nul\nIF %ERRORLEVEL% EQU 0 (\n    pip install -r \"%~dp0requirements.txt\"\n) ELSE (\n    echo Warning: pip not found. Skipping dependency installation.\n    echo Please manually install the required packages from requirements.txt\n)\n\necho.\necho Step 2: Extracting code samples from repository\necho ---------------------------------------------\npython \"%~dp0extract_code_samples.py\" ^\n  --repo-path \"%REPO_PATH%\" ^\n  --output \"%OUTPUT_DIR%\" ^\n  --min-lines \"%MIN_LINES%\" ^\n  --max-samples \"%MAX_SAMPLES%\" ^\n  --export-format \"%EXPORT_FORMAT%\"\n\nIF %ERRORLEVEL% NEQ 0 (\n    echo Error during extraction. Exiting.\n    EXIT /B %ERRORLEVEL%\n)\n\necho.\necho Step 3: Analyzing extracted code dataset\necho --------------------------------------\npython \"%~dp0analyze_code_dataset.py\" ^\n  --dataset \"%OUTPUT_DIR%\" ^\n  --output \"%OUTPUT_DIR%\\analysis\" ^\n  --format \"json\"\n\nIF %ERRORLEVEL% NEQ 0 (\n    echo Warning: Analysis completed with errors.\n)\n\necho.\necho Process complete! Results are available in: %OUTPUT_DIR%\necho   - Code samples: %OUTPUT_DIR%\\code_samples_dataset.json\necho   - Analysis: %OUTPUT_DIR%\\analysis\\code_analysis_report.html\necho.\necho To view the analysis report, open the HTML file in your browser:\necho   %OUTPUT_DIR%\\analysis\\code_analysis_report.html\n\nENDLOCAL\n",
+      "line_count": 102,
+      "code_type": "unknown",
+      "code_name": "",
+      "file_size_bytes": 2334,
+      "extraction_timestamp": "2025-05-11T21:41:20.746447"
+    }
+  ]
+}

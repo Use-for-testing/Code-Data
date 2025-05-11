@@ -1,0 +1,5 @@
+language,count,avg_size,avg_lines
+Python,5,24219.4,633.8
+Batch,1,2334.0,102.0
+Shell,2,2347.5,85.0
+Markdown,2,2949.0,100.5

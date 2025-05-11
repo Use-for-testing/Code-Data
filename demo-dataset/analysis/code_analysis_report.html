@@ -1,0 +1,337 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Code Repository Analysis Report</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            h1, h2, h3 {
+                color: #0066cc;
+            }
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                margin-bottom: 20px;
+            }
+            th, td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+            th {
+                background-color: #f2f2f2;
+            }
+            tr:nth-child(even) {
+                background-color: #f9f9f9;
+            }
+            .visualization {
+                max-width: 100%;
+                margin: 20px 0;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            }
+            .stats-container {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+            }
+            .stat-box {
+                background-color: #f8f9fa;
+                border-radius: 8px;
+                padding: 15px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                width: 23%;
+            }
+            .stat-box h3 {
+                margin-top: 0;
+                border-bottom: 1px solid #ddd;
+                padding-bottom: 5px;
+            }
+            @media (max-width: 768px) {
+                .stat-box {
+                    width: 48%;
+                }
+            }
+            @media (max-width: 480px) {
+                .stat-box {
+                    width: 100%;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Code Repository Analysis Report</h1>
+        <p>Analysis performed on: 2025-05-11 21:41:34</p>
+        
+        <h2>Overview</h2>
+        <div class="stats-container">
+            <div class="stat-box">
+                <h3>Total Samples</h3>
+                <p>10</p>
+            </div>
+            <div class="stat-box">
+                <h3>Languages</h3>
+                <p>4</p>
+            </div>
+            <div class="stat-box">
+                <h3>Avg File Size</h3>
+                <p>13402.40 bytes</p>
+            </div>
+            <div class="stat-box">
+                <h3>Avg Line Count</h3>
+                <p>364.20</p>
+            </div>
+        </div>
+    
+        <h2>Top Languages</h2>
+        <table>
+            <tr>
+                <th>Language</th>
+                <th>Sample Count</th>
+                <th>Percentage</th>
+            </tr>
+    
+            <tr>
+                <td>Python</td>
+                <td>5</td>
+                <td>50.00%</td>
+            </tr>
+        
+            <tr>
+                <td>Shell</td>
+                <td>2</td>
+                <td>20.00%</td>
+            </tr>
+        
+            <tr>
+                <td>Markdown</td>
+                <td>2</td>
+                <td>20.00%</td>
+            </tr>
+        
+            <tr>
+                <td>Batch</td>
+                <td>1</td>
+                <td>10.00%</td>
+            </tr>
+        </table>
+        <h2>Largest Files</h2>
+        <table>
+            <tr>
+                <th>File Path</th>
+                <th>Size (bytes)</th>
+                <th>Language</th>
+            </tr>
+    
+            <tr>
+                <td>Training/Train-Phi3-2bit.py</td>
+                <td>41589</td>
+                <td>Python</td>
+            </tr>
+        
+            <tr>
+                <td>Training/Train-Phi3-4bit.py</td>
+                <td>32515</td>
+                <td>Python</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/analyze_code_dataset.py</td>
+                <td>24959</td>
+                <td>Python</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/extract_code_samples.py</td>
+                <td>13716</td>
+                <td>Python</td>
+            </tr>
+        
+            <tr>
+                <td>Training/Hf-Train-Script.py</td>
+                <td>8318</td>
+                <td>Python</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/example_workflow.md</td>
+                <td>3441</td>
+                <td>Markdown</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/README.md</td>
+                <td>2457</td>
+                <td>Markdown</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/setup_toolkit_in_repo.sh</td>
+                <td>2349</td>
+                <td>Shell</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/run_extraction_and_analysis.sh</td>
+                <td>2346</td>
+                <td>Shell</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/run_extraction_and_analysis.bat</td>
+                <td>2334</td>
+                <td>Batch</td>
+            </tr>
+        </table>
+        <h2>Most Complex Files (by Line Count)</h2>
+        <table>
+            <tr>
+                <th>File Path</th>
+                <th>Line Count</th>
+                <th>Language</th>
+            </tr>
+    
+            <tr>
+                <td>Training/Train-Phi3-2bit.py</td>
+                <td>1041</td>
+                <td>Python</td>
+            </tr>
+        
+            <tr>
+                <td>Training/Train-Phi3-4bit.py</td>
+                <td>808</td>
+                <td>Python</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/analyze_code_dataset.py</td>
+                <td>712</td>
+                <td>Python</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/extract_code_samples.py</td>
+                <td>374</td>
+                <td>Python</td>
+            </tr>
+        
+            <tr>
+                <td>Training/Hf-Train-Script.py</td>
+                <td>234</td>
+                <td>Python</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/example_workflow.md</td>
+                <td>123</td>
+                <td>Markdown</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/run_extraction_and_analysis.bat</td>
+                <td>102</td>
+                <td>Batch</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/run_extraction_and_analysis.sh</td>
+                <td>95</td>
+                <td>Shell</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/README.md</td>
+                <td>78</td>
+                <td>Markdown</td>
+            </tr>
+        
+            <tr>
+                <td>Scripts/setup_toolkit_in_repo.sh</td>
+                <td>75</td>
+                <td>Shell</td>
+            </tr>
+        </table>
+        <h2>Language Statistics</h2>
+        <table>
+            <tr>
+                <th>Language</th>
+                <th>Count</th>
+                <th>Avg Size (bytes)</th>
+                <th>Avg Lines</th>
+                <th>Sample File Paths</th>
+            </tr>
+    
+            <tr>
+                <td>Python</td>
+                <td>5</td>
+                <td>24219.40</td>
+                <td>633.80</td>
+                <td>Training/Hf-Train-Script.py, Scripts/analyze_code_dataset.py, Training/Train-Phi3-2bit.py, Training/Train-Phi3-4bit.py, Scripts/extract_code_samples.py</td>
+            </tr>
+        
+            <tr>
+                <td>Shell</td>
+                <td>2</td>
+                <td>2347.50</td>
+                <td>85.00</td>
+                <td>Scripts/setup_toolkit_in_repo.sh, Scripts/run_extraction_and_analysis.sh</td>
+            </tr>
+        
+            <tr>
+                <td>Markdown</td>
+                <td>2</td>
+                <td>2949.00</td>
+                <td>100.50</td>
+                <td>Scripts/README.md, Scripts/example_workflow.md</td>
+            </tr>
+        
+            <tr>
+                <td>Batch</td>
+                <td>1</td>
+                <td>2334.00</td>
+                <td>102.00</td>
+                <td>Scripts/run_extraction_and_analysis.bat</td>
+            </tr>
+        </table>
+        <h2>Code Type Distribution</h2>
+        <table>
+            <tr>
+                <th>Code Type</th>
+                <th>Count</th>
+                <th>Percentage</th>
+            </tr>
+    
+            <tr>
+                <td>function</td>
+                <td>2</td>
+                <td>20.00%</td>
+            </tr>
+        
+            <tr>
+                <td>unknown</td>
+                <td>5</td>
+                <td>50.00%</td>
+            </tr>
+        
+            <tr>
+                <td>class</td>
+                <td>3</td>
+                <td>30.00%</td>
+            </tr>
+        
+        </table>
+        <footer>
+            <p>Generated by GitHub Code Dataset Analyzer</p>
+        </footer>
+    </body>
+    </html>
+    

@@ -1,0 +1,45 @@
+{
+  "dataset_name": "GitHub Code Samples",
+  "description": "A dataset of code samples extracted from a GitHub repository",
+  "creation_date": "2025-05-11T21:41:20.746933",
+  "total_samples": 10,
+  "languages": {
+    "Python": 5,
+    "Markdown": 2,
+    "Shell": 2,
+    "Batch": 1
+  },
+  "extraction_parameters": {
+    "min_lines": 5,
+    "max_samples_per_language": 5,
+    "included_directories": "all",
+    "excluded_directories": [
+      "logs",
+      ".next",
+      ".venv",
+      ".idea",
+      ".coverage",
+      "env",
+      "venv",
+      "obj",
+      "temp",
+      "dist",
+      "node_modules",
+      ".github",
+      ".DS_Store",
+      ".vscode",
+      "tmp",
+      "log",
+      ".env",
+      "bin",
+      "__pycache__",
+      "coverage",
+      ".git",
+      "build",
+      "target",
+      "out"
+    ],
+    "included_languages": "all",
+    "excluded_languages": []
+  }
+}
