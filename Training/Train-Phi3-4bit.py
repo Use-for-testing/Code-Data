@@ -755,7 +755,322 @@ except Exception as e:
     raise
 
 # %%
-# Test the model with Swift code examples
+# Comprehensive evaluation to measure how much the model has learned
+print("\n" + "="*80)
+print("QUANTITATIVE EVALUATION OF MODEL LEARNING")
+print("="*80)
+
+try:
+    # 1. Load original pre-trained model for comparison
+    print("\n[1] Loading original pre-trained model for comparison...")
+    
+    # Use the same quantization config for fair comparison
+    original_bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_use_double_quant=True
+    )
+    
+    try:
+        # Load the original model with the same quantization as our fine-tuned model
+        original_model = AutoModelForCausalLM.from_pretrained(
+            MODEL_NAME,  # Use the original model name
+            quantization_config=original_bnb_config,
+            device_map="auto" if torch.cuda.is_available() else None,
+            torch_dtype=torch.float16,
+            trust_remote_code=True
+        )
+        print(f"Successfully loaded original model: {MODEL_NAME}")
+        has_original_model = True
+    except Exception as e:
+        print(f"Warning: Could not load original model for comparison: {e}")
+        print("Will proceed with evaluations that don't require the original model.")
+        has_original_model = False
+    
+    # 2. Calculate perplexity on test set
+    print("\n[2] Calculating perplexity on test set...")
+    
+    def calculate_perplexity(eval_model, eval_dataset, batch_size=4):
+        """Calculate perplexity on evaluation dataset."""
+        eval_dataloader = torch.utils.data.DataLoader(
+            eval_dataset, batch_size=batch_size, shuffle=False
+        )
+        
+        eval_model.eval()
+        total_loss = 0
+        total_tokens = 0
+        
+        with torch.no_grad():
+            for batch in eval_dataloader:
+                batch = {k: v.to(device) for k, v in batch.items()}
+                outputs = eval_model(**batch)
+                loss = outputs.loss
+                
+                # Get the number of tokens in the batch
+                num_tokens = batch["attention_mask"].sum().item()
+                
+                total_loss += loss.item() * num_tokens
+                total_tokens += num_tokens
+        
+        # Calculate perplexity
+        avg_loss = total_loss / total_tokens
+        perplexity = np.exp(avg_loss)
+        
+        return perplexity
+    
+    # Calculate perplexity for fine-tuned model
+    fine_tuned_perplexity = calculate_perplexity(model, tokenized_val)
+    print(f"Fine-tuned model perplexity: {fine_tuned_perplexity:.4f}")
+    
+    if has_original_model:
+        # Calculate perplexity for original model if available
+        original_perplexity = calculate_perplexity(original_model, tokenized_val)
+        print(f"Original model perplexity: {original_perplexity:.4f}")
+        
+        # Calculate improvement
+        if original_perplexity > fine_tuned_perplexity:
+            improvement = ((original_perplexity - fine_tuned_perplexity) / original_perplexity) * 100
+            print(f"Perplexity improvement: {improvement:.2f}% better than original model")
+        else:
+            decline = ((fine_tuned_perplexity - original_perplexity) / original_perplexity) * 100
+            print(f"Perplexity decline: {decline:.2f}% worse than original model")
+    
+    # 3. Function to generate responses for evaluation
+    def generate_response(eval_model, prompt, max_tokens=200):
+        inputs = tokenizer(prompt, return_tensors="pt").to(device)
+        with torch.no_grad():
+            outputs = eval_model.generate(
+                inputs.input_ids,
+                max_new_tokens=max_tokens,
+                temperature=0.7,
+                top_p=0.9,
+                do_sample=True,
+                pad_token_id=tokenizer.pad_token_id,
+                eos_token_id=tokenizer.eos_token_id
+            )
+        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        # Extract just the assistant's response
+        if "<|assistant|>" in response:
+            response = response.split("<|assistant|>")[-1].strip()
+        return response
+    
+    # 4. Define a structured benchmark for Swift programming tasks
+    print("\n[3] Executing Swift programming benchmark...")
+    
+    swift_benchmark = [
+        {
+            "name": "Optional Unwrapping",
+            "category": "Language Fundamentals",
+            "prompt": "<|user|>\nExplain the key features of Swift's optional unwrapping syntax:\n\n```swift\nfunc processName(_ name: String?) {\n    guard let unwrappedName = name else {\n        print(\"No name provided\")\n        return\n    }\n    print(\"Hello, \\(unwrappedName)!\")\n}\n```\n<|assistant|>",
+            "keywords": ["guard", "optional", "unwrap", "if let", "nil", "safety"]
+        },
+        {
+            "name": "Factorial Implementation",
+            "category": "Algorithm Implementation",
+            "prompt": "<|user|>\nComplete this Swift function that calculates the factorial of a number:\n\n```swift\nfunc factorial(_ n: Int) -> Int {\n    // Add implementation here\n}\n```\n<|assistant|>",
+            "keywords": ["recursion", "base case", "return 1", "multiply", "n * factorial"]
+        },
+        {
+            "name": "Class Initialization",
+            "category": "Object-Oriented Programming",
+            "prompt": "<|user|>\nWhat's wrong with this Swift code and how can I fix it?\n\n```swift\nclass Person {\n    var name: String\n    var age: Int\n    \n    func greet() {\n        print(\"Hello, my name is \\(name) and I am \\(age) years old.\")\n    }\n}\n\nlet person = Person()\nperson.greet()\n```\n<|assistant|>",
+            "keywords": ["initializer", "init", "required", "properties", "constructor"]
+        },
+        {
+            "name": "Error Handling Patterns",
+            "category": "Best Practices",
+            "prompt": "<|user|>\nExplain Swift best practices for error handling:\n<|assistant|>",
+            "keywords": ["throws", "do-catch", "try", "Error protocol", "Result type"]
+        },
+        {
+            "name": "Protocol Implementation",
+            "category": "Swift Protocols",
+            "prompt": "<|user|>\nExplain how to use protocols in Swift and provide an example of protocol conformance:\n<|assistant|>",
+            "keywords": ["protocol", "conform", "implement", "requirement", "extension"]
+        }
+    ]
+    
+    # 5. Evaluate and score responses based on keyword presence
+    def score_response(response, keywords):
+        """Score a response based on the presence of expected keywords."""
+        score = 0
+        matched_keywords = []
+        
+        for keyword in keywords:
+            if keyword.lower() in response.lower():
+                score += 1
+                matched_keywords.append(keyword)
+        
+        percentage = (score / len(keywords)) * 100 if keywords else 0
+        return {
+            "score": score,
+            "total": len(keywords),
+            "percentage": percentage,
+            "matched_keywords": matched_keywords
+        }
+    
+    # 6. Run the benchmark and collect results
+    benchmark_results = []
+    
+    for test in swift_benchmark:
+        print(f"\nEvaluating: {test['name']} ({test['category']})")
+        
+        # Generate response with fine-tuned model
+        fine_tuned_response = generate_response(model, test['prompt'])
+        fine_tuned_score = score_response(fine_tuned_response, test['keywords'])
+        
+        result = {
+            "name": test['name'],
+            "category": test['category'],
+            "fine_tuned_score": fine_tuned_score
+        }
+        
+        if has_original_model:
+            # Generate response with original model if available
+            original_response = generate_response(original_model, test['prompt'])
+            original_score = score_response(original_response, test['keywords'])
+            result["original_score"] = original_score
+            
+            # Calculate improvement
+            score_diff = fine_tuned_score["percentage"] - original_score["percentage"]
+            result["improvement"] = score_diff
+            
+            print(f"  Original model score: {original_score['percentage']:.1f}%")
+            print(f"  Fine-tuned model score: {fine_tuned_score['percentage']:.1f}%")
+            print(f"  Improvement: {score_diff:+.1f}%")
+        else:
+            print(f"  Fine-tuned model score: {fine_tuned_score['percentage']:.1f}%")
+        
+        benchmark_results.append(result)
+    
+    # 7. Calculate overall learning metrics
+    print("\n[4] Calculating overall learning metrics...")
+    
+    # Average score across all benchmark tests
+    avg_fine_tuned_score = sum(r["fine_tuned_score"]["percentage"] for r in benchmark_results) / len(benchmark_results)
+    print(f"Average fine-tuned model score: {avg_fine_tuned_score:.2f}%")
+    
+    if has_original_model:
+        avg_original_score = sum(r["original_score"]["percentage"] for r in benchmark_results) / len(benchmark_results)
+        avg_improvement = sum(r["improvement"] for r in benchmark_results) / len(benchmark_results)
+        print(f"Average original model score: {avg_original_score:.2f}%")
+        print(f"Average improvement: {avg_improvement:+.2f}%")
+    
+    # 8. Generate summary report
+    print("\n" + "="*80)
+    print("LEARNING ASSESSMENT SUMMARY")
+    print("="*80)
+    
+    print("\nPerformance by category:")
+    categories = set(test["category"] for test in swift_benchmark)
+    for category in categories:
+        category_tests = [r for r in benchmark_results if r["category"] == category]
+        avg_category_score = sum(r["fine_tuned_score"]["percentage"] for r in category_tests) / len(category_tests)
+        print(f"  - {category}: {avg_category_score:.2f}%")
+    
+    # Learning assessment based on scores
+    if avg_fine_tuned_score > 80:
+        learning_assessment = "Excellent"
+    elif avg_fine_tuned_score > 60:
+        learning_assessment = "Good"
+    elif avg_fine_tuned_score > 40:
+        learning_assessment = "Moderate"
+    else:
+        learning_assessment = "Limited"
+    
+    print(f"\nOverall learning assessment: {learning_assessment}")
+    
+    if has_original_model:
+        improvement_assessment = ""
+        if avg_improvement > 20:
+            improvement_assessment = "Substantial improvement over the original model"
+        elif avg_improvement > 10:
+            improvement_assessment = "Significant improvement over the original model"
+        elif avg_improvement > 0:
+            improvement_assessment = "Modest improvement over the original model"
+        else:
+            improvement_assessment = "No improvement over the original model"
+        
+        print(f"Comparative assessment: {improvement_assessment}")
+    
+    # 9. Save evaluation results
+    evaluation_results = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "model_name": MODEL_NAME,
+        "fine_tuned_perplexity": float(fine_tuned_perplexity),
+        "benchmark_results": [
+            {
+                "name": r["name"],
+                "category": r["category"],
+                "fine_tuned_score": {
+                    "percentage": float(r["fine_tuned_score"]["percentage"]),
+                    "score": r["fine_tuned_score"]["score"],
+                    "total": r["fine_tuned_score"]["total"]
+                }
+            } for r in benchmark_results
+        ],
+        "average_score": float(avg_fine_tuned_score),
+        "learning_assessment": learning_assessment
+    }
+    
+    if has_original_model:
+        evaluation_results["original_perplexity"] = float(original_perplexity)
+        evaluation_results["perplexity_improvement"] = float(improvement) if "improvement" in locals() else float(-decline)
+        for i, r in enumerate(evaluation_results["benchmark_results"]):
+            r["original_score"] = {
+                "percentage": float(benchmark_results[i]["original_score"]["percentage"]),
+                "score": benchmark_results[i]["original_score"]["score"],
+                "total": benchmark_results[i]["original_score"]["total"]
+            }
+            r["improvement"] = float(benchmark_results[i]["improvement"])
+        
+        evaluation_results["average_original_score"] = float(avg_original_score)
+        evaluation_results["average_improvement"] = float(avg_improvement)
+        evaluation_results["improvement_assessment"] = improvement_assessment
+    
+    # Save to file
+    evaluation_file = "./phi3_swift_model/evaluation_results.json"
+    with open(evaluation_file, "w") as f:
+        json.dump(evaluation_results, f, indent=2)
+    
+    print(f"\nEvaluation results saved to {evaluation_file}")
+    
+    # 10. Visual qualitative comparison (display a few examples)
+    print("\n" + "="*80)
+    print("QUALITATIVE COMPARISON EXAMPLES")
+    print("="*80)
+    
+    # Choose a couple of tests for detailed comparison
+    detailed_examples = swift_benchmark[:2]  # Just use the first two tests for brevity
+    
+    for i, test in enumerate(detailed_examples):
+        print(f"\nExample {i+1}: {test['name']}")
+        print("-" * 40)
+        
+        print(f"Prompt: {test['prompt'].split('<|assistant|>')[0].replace('<|user|>', '')}")
+        
+        fine_tuned_response = generate_response(model, test['prompt'])
+        print(f"\nFine-tuned model response:")
+        print(fine_tuned_response[:500] + ("..." if len(fine_tuned_response) > 500 else ""))
+        
+        if has_original_model:
+            original_response = generate_response(original_model, test['prompt'])
+            print(f"\nOriginal model response:")
+            print(original_response[:500] + ("..." if len(original_response) > 500 else ""))
+    
+    print("\nEvaluation complete!\n")
+
+except Exception as e:
+    print(f"Error during evaluation: {e}")
+    import traceback
+    traceback.print_exc()
+
+# Original simple test examples remain but are now supplementary
+print("\n" + "="*80)
+print("SUPPLEMENTARY TEST EXAMPLES")
+print("="*80)
+
 try:
     print("Testing the model with Swift code examples...")
     
