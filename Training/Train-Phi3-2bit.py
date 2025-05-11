@@ -43,19 +43,42 @@ from transformers import (
     TrainingArguments, 
     Trainer, 
     DataCollatorForLanguageModeling,
-    BitsAndBytesConfig
+    BitsAndBytesConfig,
+    EarlyStoppingCallback
 )
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-# Import AQLM for 2-bit quantization
+
+# Import AQLM for 2-bit quantization with correct import paths
 try:
-    from aqlm import AutoAQLMForCausalLM, AQLMConfig
-    from aqlm.utils import check_quantization_supported
-except ImportError:
-    print("AQLM package not found. Installing...")
-    import subprocess
-    subprocess.check_call(["pip", "install", "-U", "aqlm", "--no-cache-dir"])
-    from aqlm import AutoAQLMForCausalLM, AQLMConfig
-    from aqlm.utils import check_quantization_supported
+    # Install AQLM if not already installed
+    try:
+        import aqlm
+    except ImportError:
+        print("AQLM package not found. Installing...")
+        import subprocess
+        subprocess.check_call(["pip", "install", "-U", "aqlm", "--no-cache-dir"])
+        import aqlm
+    
+    # Try different import patterns based on AQLM package structure
+    try:
+        # Try importing from aqlm.modeling (newer versions)
+        from aqlm.modeling import AutoAQLMForCausalLM, AQLMConfig
+        from aqlm.modeling.utils import check_quantization_supported
+        print("Successfully imported AQLM from aqlm.modeling")
+    except ImportError:
+        try:
+            # Try importing from aqlm.transformers (alternative location)
+            from aqlm.transformers import AutoAQLMForCausalLM, AQLMConfig
+            from aqlm.transformers.utils import check_quantization_supported
+            print("Successfully imported AQLM from aqlm.transformers")
+        except ImportError:
+            # Check what modules are actually available in aqlm
+            print("Available modules in AQLM package:", dir(aqlm))
+            raise ImportError("Could not find AutoAQLMForCausalLM in aqlm package. AQLM structure may have changed.")
+            
+except Exception as e:
+    print(f"Error importing AQLM: {e}")
+    print("Will fallback to 4-bit quantization using BitsAndBytes instead of 2-bit AQLM")
 
 # Define memory cleanup function
 def cleanup_memory():
@@ -680,77 +703,118 @@ data_collator = CustomDataCollatorForLanguageModeling(
 )
 
 # %%
-# Load model with AQLM 2-bit quantization
-print("Loading model with AQLM 2-bit quantization...")
+# Define global variable to track quantization method used
+USING_AQLM = False
+QUANTIZATION_BITS = 2  # Default target
+
+# Load model with quantization (AQLM 2-bit preferred, with fallbacks)
+print("Setting up model with quantization...")
 try:
-    # Check if the model architecture is supported by AQLM
-    print(f"Checking if {MODEL_NAME} is supported for AQLM 2-bit quantization...")
-    is_supported = check_quantization_supported(MODEL_NAME)
-    if not is_supported:
-        print(f"Warning: {MODEL_NAME} architecture may not be fully supported by AQLM, but attempting quantization anyway")
-    
-    # Configure AQLM for 2-bit quantization
-    aqlm_config = AQLMConfig(
-        bits=2,  # 2-bit quantization
-        device_map="auto",  # Automatically distribute across available GPUs
-        torch_dtype=torch.float16,  # Use half precision for non-quantized weights
-        offload_activations=True if torch.cuda.device_count() > 1 else False,  # Offload activations to CPU in multi-GPU setup
-        model_seqlen=MAX_LENGTH,  # Set maximum sequence length
-    )
-    
-    # Load the model with AQLM quantization
-    print(f"Loading {MODEL_NAME} with 2-bit AQLM quantization...")
-    
-    try:
-        model = AutoAQLMForCausalLM.from_pretrained(
-            MODEL_NAME,
-            quantization_config=aqlm_config,
-            trust_remote_code=True,
-            use_cache=False,  # Disable KV cache during training for better memory efficiency
-            low_cpu_mem_usage=True,  # Reduce CPU memory usage during loading
-        )
-        print("Successfully loaded model with 2-bit quantization")
-    except Exception as model_load_error:
-        print(f"Error when loading with 2-bit quantization: {model_load_error}")
-        print("Attempting to load with 4-bit quantization as fallback...")
+    # Try loading with AQLM 2-bit if available
+    if 'AutoAQLMForCausalLM' in globals() and 'AQLMConfig' in globals():
+        print(f"Attempting AQLM {QUANTIZATION_BITS}-bit quantization...")
         
-        # Fallback to 4-bit if 2-bit fails
-        aqlm_config.bits = 4
-        model = AutoAQLMForCausalLM.from_pretrained(
-            MODEL_NAME,
-            quantization_config=aqlm_config,
-            trust_remote_code=True,
-            use_cache=False,
+        # Check if the model architecture is supported by AQLM
+        try:
+            is_supported = check_quantization_supported(MODEL_NAME)
+            if not is_supported:
+                print(f"Warning: {MODEL_NAME} architecture may not be fully supported by AQLM, but attempting quantization anyway")
+        except Exception as e:
+            print(f"Warning: Could not check AQLM compatibility: {e}")
+        
+        # Configure AQLM for 2-bit quantization
+        aqlm_config = AQLMConfig(
+            bits=QUANTIZATION_BITS,  # 2-bit quantization
+            device_map="auto",  # Automatically distribute across available GPUs
+            torch_dtype=torch.float16,  # Use half precision for non-quantized weights
+            offload_activations=True if torch.cuda.device_count() > 1 else False,  # Offload activations to CPU in multi-GPU setup
+            model_seqlen=MAX_LENGTH,  # Set maximum sequence length
         )
-        print("Warning: Using 4-bit quantization as fallback")
+        
+        # Load the model with AQLM quantization
+        print(f"Loading {MODEL_NAME} with {QUANTIZATION_BITS}-bit AQLM quantization...")
+        
+        try:
+            model = AutoAQLMForCausalLM.from_pretrained(
+                MODEL_NAME,
+                quantization_config=aqlm_config,
+                trust_remote_code=True,
+                use_cache=False,  # Disable KV cache during training for better memory efficiency
+                low_cpu_mem_usage=True,  # Reduce CPU memory usage during loading
+            )
+            print(f"Successfully loaded model with {QUANTIZATION_BITS}-bit AQLM quantization")
+            USING_AQLM = True
+        except Exception as model_load_error:
+            print(f"Error when loading with {QUANTIZATION_BITS}-bit quantization: {model_load_error}")
+            
+            if QUANTIZATION_BITS == 2:
+                print("Attempting to load with 4-bit AQLM quantization as fallback...")
+                # Fallback to 4-bit AQLM if 2-bit fails
+                QUANTIZATION_BITS = 4
+                aqlm_config.bits = QUANTIZATION_BITS
+                try:
+                    model = AutoAQLMForCausalLM.from_pretrained(
+                        MODEL_NAME,
+                        quantization_config=aqlm_config,
+                        trust_remote_code=True,
+                        use_cache=False,
+                    )
+                    print(f"Successfully loaded model with {QUANTIZATION_BITS}-bit AQLM quantization")
+                    USING_AQLM = True
+                except Exception as e:
+                    print(f"AQLM 4-bit fallback also failed: {e}")
+                    raise ValueError("AQLM quantization failed at both 2-bit and 4-bit levels")
+            else:
+                raise ValueError(f"Failed to load model with AQLM {QUANTIZATION_BITS}-bit quantization")
+    else:
+        raise ImportError("AQLM modules not available")
+        
+except Exception as e:
+    print(f"AQLM quantization unavailable or failed: {e}")
+    print("Falling back to BitsAndBytes 4-bit quantization...")
     
-    # Prepare model for LoRA fine-tuning
-    # Configure LoRA
-    lora_config = LoraConfig(
-        r=LORA_R,
-        lora_alpha=LORA_ALPHA,
-        lora_dropout=LORA_DROPOUT,
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    # Configure BitsAndBytes for 4-bit quantization as fallback
+    QUANTIZATION_BITS = 4
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.float16
     )
     
-    # Prepare the model for kbit training with LoRA
-    model = prepare_model_for_kbit_training(model)
-    model = get_peft_model(model, lora_config)
-    
-    print(f"Model loaded and configured with AQLM 2-bit quantization and LoRA (rank={LORA_R})")
-    
-    # Print model architecture info
-    print(f"Model architecture: {model.__class__.__name__}")
-    print(f"Total parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
-    print(f"Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6:.2f}M")
-    
-except Exception as e:
-    print(f"Error loading model with AQLM: {e}")
-    import traceback
-    traceback.print_exc()
-    raise
+    # Load the model with BitsAndBytes quantization
+    model = AutoModelForCausalLM.from_pretrained(
+        MODEL_NAME,
+        quantization_config=bnb_config,
+        device_map="auto",
+        torch_dtype=torch.float16,
+        trust_remote_code=True,
+        use_cache=False,  # Disable KV cache during training for better memory efficiency
+    )
+    print("Successfully loaded model with 4-bit BitsAndBytes quantization")
+    USING_AQLM = False
+
+# Configure LoRA regardless of quantization method
+print("Setting up LoRA fine-tuning configuration...")
+lora_config = LoraConfig(
+    r=LORA_R,
+    lora_alpha=LORA_ALPHA,
+    lora_dropout=LORA_DROPOUT,
+    bias="none",
+    task_type="CAUSAL_LM",
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+)
+
+# Prepare the model for kbit training with LoRA
+model = prepare_model_for_kbit_training(model)
+model = get_peft_model(model, lora_config)
+
+print(f"Model loaded and configured with {QUANTIZATION_BITS}-bit quantization ({'AQLM' if USING_AQLM else 'BitsAndBytes'}) and LoRA (rank={LORA_R})")
+
+# Print model architecture info
+print(f"Model architecture: {model.__class__.__name__}")
+print(f"Total parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
+print(f"Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6:.2f}M")
 
 # %%
 # Create trainer
@@ -816,30 +880,69 @@ try:
     print(f"Training completed in {train_result.metrics['train_runtime']:.2f} seconds")
     print(f"Training loss: {train_result.metrics['train_loss']:.4f}")
     
-    # Save the model (saves in 2-bit quantized format)
+    # Save the model with appropriate method based on quantization used
     trainer.save_model("./phi3_swift_model")
-    print("Model saved to ./phi3_swift_model (2-bit AQLM quantized)")
+    print(f"Model saved to ./phi3_swift_model ({QUANTIZATION_BITS}-bit {'AQLM' if USING_AQLM else 'BitsAndBytes'} quantized)")
     
     # Save model configuration details
     with open("./phi3_swift_model/quantization_config.json", "w") as f:
-        json.dump({
-            "quantization_method": "AQLM",
-            "bits": aqlm_config.bits,  # Will be 2 or 4 depending on what was used
+        config_data = {
+            "quantization_method": "AQLM" if USING_AQLM else "BitsAndBytes",
+            "bits": QUANTIZATION_BITS,
             "lora_rank": LORA_R,
             "lora_alpha": LORA_ALPHA,
             "original_model": MODEL_NAME,
             "max_length": MAX_LENGTH
-        }, f, indent=2)
-        
+        }
+        json.dump(config_data, f, indent=2)
+    
     # Also save a README with information about the quantization
     with open("./phi3_swift_model/README.md", "w") as f:
+        quant_method = "AQLM (Activation Quantization with Low-rank Methods)" if USING_AQLM else "BitsAndBytes (HuggingFace Transformers)"
+        
+        # Prepare loading code example based on quantization method
+        if USING_AQLM:
+            loading_code = """```python
+from aqlm.modeling import AutoAQLMForCausalLM  # or the correct import path found during training
+from transformers import AutoTokenizer
+
+# Load the tokenizer
+tokenizer = AutoTokenizer.from_pretrained("./phi3_swift_model")
+
+# Load the quantized model
+model = AutoAQLMForCausalLM.from_pretrained("./phi3_swift_model")
+```"""
+        else:
+            loading_code = """```python
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+import torch
+
+# Load the tokenizer
+tokenizer = AutoTokenizer.from_pretrained("./phi3_swift_model")
+
+# Configure quantization (same as used during training)
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.float16
+)
+
+# Load the quantized model
+model = AutoModelForCausalLM.from_pretrained(
+    "./phi3_swift_model",
+    quantization_config=bnb_config,
+    device_map="auto"
+)
+```"""
+        
         f.write(f"""# Phi-3-mini Quantized Model
 
-This model is a {aqlm_config.bits}-bit quantized version of `{MODEL_NAME}` trained for Swift programming.
+This model is a {QUANTIZATION_BITS}-bit quantized version of `{MODEL_NAME}` trained for Swift programming.
 
 ## Quantization Details
-- Method: AQLM (Activation Quantization with Low-rank Methods)
-- Bits: {aqlm_config.bits} 
+- Method: {quant_method}
+- Bits: {QUANTIZATION_BITS} 
 - Training dataset: {DATASET_ID}
 - Fine-tuning method: LoRA (Low-Rank Adaptation)
 - LoRA rank: {LORA_R}
@@ -849,16 +952,7 @@ This model is a {aqlm_config.bits}-bit quantized version of `{MODEL_NAME}` train
 
 To load this model:
 
-```python
-from aqlm import AutoAQLMForCausalLM
-from transformers import AutoTokenizer
-
-# Load the tokenizer
-tokenizer = AutoTokenizer.from_pretrained("./phi3_swift_model")
-
-# Load the quantized model
-model = AutoAQLMForCausalLM.from_pretrained("./phi3_swift_model")
-```
+{loading_code}
 
 This quantized model reduces memory usage significantly while maintaining most of the capabilities of the original model.
 """)
@@ -882,31 +976,59 @@ except Exception as e:
 # %%
 # Test the model with Swift code examples
 try:
-    print("Testing the 2-bit quantized model with Swift code examples...")
+    print(f"Testing the {QUANTIZATION_BITS}-bit {'AQLM' if USING_AQLM else 'BitsAndBytes'} quantized model with Swift code examples...")
     
-    # For testing, we can use the model we already have loaded, or load it from disk if needed
-    # This ensures we're testing the actual 2-bit quantized model
-    test_model = model  # Use the already loaded model
+    # For testing, use the already loaded model
+    test_model = model
     
-    # Function to generate responses for test examples with the 2-bit quantized model
+    # Print device information
+    if torch.cuda.is_available():
+        print(f"Testing on device: {device} ({torch.cuda.get_device_name(0)})")
+        print(f"Available GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+        print(f"Current GPU memory usage: {torch.cuda.memory_allocated() / 1024**3:.2f} GB")
+    else:
+        print(f"Testing on device: CPU")
+    
+    # Function to generate responses with appropriate error handling
     def generate_response(prompt):
-        inputs = tokenizer(prompt, return_tensors="pt").to(device)
-        with torch.no_grad():
-            # Generate with the 2-bit quantized model
-            outputs = test_model.generate(
-                inputs.input_ids,
-                max_new_tokens=200,
-                temperature=0.7,
-                top_p=0.9,
-                do_sample=True,
-                pad_token_id=tokenizer.pad_token_id,
-                eos_token_id=tokenizer.eos_token_id
-            )
-        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        # Extract just the assistant's response
-        if "<|assistant|>" in response:
-            response = response.split("<|assistant|>")[-1].strip()
-        return response
+        try:
+            # First ensure the prompt has the correct format for phi-3's chat template
+            if not prompt.startswith("<|user|>"):
+                prompt = f"<|user|>\n{prompt}"
+            if not "<|assistant|>" in prompt:
+                prompt = f"{prompt}\n<|assistant|>"
+                
+            # Tokenize and move to device
+            inputs = tokenizer(prompt, return_tensors="pt").to(device)
+            
+            # Generate with appropriate settings based on model size and quantization
+            with torch.no_grad():
+                outputs = test_model.generate(
+                    inputs.input_ids,
+                    max_new_tokens=200,
+                    temperature=0.7,
+                    top_p=0.9,
+                    do_sample=True,
+                    pad_token_id=tokenizer.pad_token_id,
+                    eos_token_id=tokenizer.eos_token_id,
+                    # Additional generation parameters for stability
+                    repetition_penalty=1.1,
+                    no_repeat_ngram_size=3
+                )
+            
+            # Decode the response
+            response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            
+            # Extract just the assistant's response for cleaner output
+            if "<|assistant|>" in response:
+                response = response.split("<|assistant|>")[-1].strip()
+            
+            return response
+            
+        except Exception as e:
+            print(f"Error during generation: {e}")
+            # Provide a fallback response so testing can continue
+            return f"[Error generating response: {str(e)}]"
     
     # Test prompts for different Swift language tasks
     test_prompts = [
@@ -923,14 +1045,24 @@ try:
         "<|user|>\nExplain Swift best practices for error handling:\n<|assistant|>"
     ]
     
+    # Clean up memory before testing
+    cleanup_memory()
+    
     # Generate and print responses
     for i, prompt in enumerate(test_prompts):
         print(f"\nTest {i+1}:\n{'-'*40}")
         print(f"Prompt: {prompt.split('<|assistant|>')[0].replace('<|user|>', '')}")
+        
+        # Add a small delay between tests to avoid potential GPU memory issues
+        if i > 0 and torch.cuda.is_available():
+            time.sleep(1)
+            torch.cuda.empty_cache()
+            
         response = generate_response(prompt)
         print(f"\nResponse:\n{response}\n")
     
-    print("\nTesting complete")
+    print(f"\nTesting complete for {QUANTIZATION_BITS}-bit {'AQLM' if USING_AQLM else 'BitsAndBytes'} quantized model")
+
 except Exception as e:
     print(f"Error during testing: {e}")
     import traceback
