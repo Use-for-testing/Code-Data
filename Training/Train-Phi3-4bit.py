@@ -708,48 +708,48 @@ try:
             reserved = torch.cuda.memory_reserved(i) / (1024**3)
             print(f"GPU {i} memory after model loading: {allocated:.2f} GB allocated, {reserved:.2f} GB reserved")
     
+    # %%
+    # FIXED: Create a custom data collator that properly handles the data
+    class CustomDataCollatorForLanguageModeling(DataCollatorForLanguageModeling):
+        def __call__(self, features):
+            # Ensure all features have the same keys
+            if not all(k in features[0] for k in ["input_ids", "attention_mask", "labels"]):
+                raise ValueError("Some features are missing required keys")
+            
+            # Create a batch with proper padding
+            batch = {
+                "input_ids": torch.stack([f["input_ids"] for f in features]),
+                "attention_mask": torch.stack([f["attention_mask"] for f in features]),
+                "labels": torch.stack([f["labels"] for f in features])
+            }
+            
+            return batch
+
+    # Create data collator for language modeling
+    data_collator = CustomDataCollatorForLanguageModeling(
+        tokenizer=tokenizer,
+        mlm=False  # We're doing causal language modeling, not masked language modeling
+    )
+
+    # %%
+    # Create trainer - moved inside the try block to ensure model variable is defined
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=tokenized_train,
+        eval_dataset=tokenized_val,
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        callbacks=[early_stopping_callback]
+    )
+
+    print("Training setup complete")
+    
 except Exception as e:
-    print(f"Error loading model: {e}")
+    print(f"Error loading model or setting up trainer: {e}")
     import traceback
     traceback.print_exc()
     raise
-
-# %%
-# FIXED: Create a custom data collator that properly handles the data
-class CustomDataCollatorForLanguageModeling(DataCollatorForLanguageModeling):
-    def __call__(self, features):
-        # Ensure all features have the same keys
-        if not all(k in features[0] for k in ["input_ids", "attention_mask", "labels"]):
-            raise ValueError("Some features are missing required keys")
-        
-        # Create a batch with proper padding
-        batch = {
-            "input_ids": torch.stack([f["input_ids"] for f in features]),
-            "attention_mask": torch.stack([f["attention_mask"] for f in features]),
-            "labels": torch.stack([f["labels"] for f in features])
-        }
-        
-        return batch
-
-# Create data collator for language modeling
-data_collator = CustomDataCollatorForLanguageModeling(
-    tokenizer=tokenizer,
-    mlm=False  # We're doing causal language modeling, not masked language modeling
-)
-
-# %%
-# Create trainer
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=tokenized_train,
-    eval_dataset=tokenized_val,
-    tokenizer=tokenizer,
-    data_collator=data_collator,
-    callbacks=[early_stopping_callback]
-)
-
-print("Training setup complete")
 
 
 # %%
