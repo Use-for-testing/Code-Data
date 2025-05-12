@@ -17,9 +17,9 @@
 #
 # This notebook trains Microsoft's Phi-3-mini-128k-instruct model to understand and work with Swift code using a dataset of real Swift files.
 #
-# ## Execution Flow for Kaggle
+# ## Execution Flow
 # 
-# This notebook is designed to run smoothly on Kaggle or in any Jupyter environment. Cells will execute sequentially in the following order:
+# This notebook executes sequentially in the following order:
 # 
 # 1. Setup and library installation
 # 2. Data preparation
@@ -29,42 +29,6 @@
 # 6. Model testing
 
 # %%
-# EXECUTION TRACKING SYSTEM - helps ensure proper execution on Kaggle and Jupyter
-# This cell must be executed first
-
-# Create execution tracker
-EXECUTION_STATUS = {
-    "setup_complete": False,
-    "data_loaded": False,
-    "model_initialized": False,
-    "trainer_created": False,
-    "training_complete": False,
-    "testing_complete": False
-}
-
-def update_status(stage):
-    """Update execution status and print progress"""
-    global EXECUTION_STATUS
-    EXECUTION_STATUS[stage] = True
-    
-    # Calculate progress
-    completed = sum(1 for status in EXECUTION_STATUS.values() if status)
-    total = len(EXECUTION_STATUS)
-    progress = completed / total * 100
-    
-    print(f"✓ {stage.replace('_', ' ').title()} - Progress: {progress:.1f}%")
-    
-    return True
-
-# Check if we're running on Kaggle
-try:
-    import kaggle
-    IS_KAGGLE = True
-    print("✓ Detected Kaggle environment - Sequential execution mode active")
-except ImportError:
-    IS_KAGGLE = False
-    print("✓ Standard Jupyter environment detected")
-
 # Flag to begin execution
 print("Starting Phi-3 training pipeline...")
 
@@ -76,10 +40,6 @@ print("📦 Installing required libraries...")
 import os
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"  # Explicitly set to use 2 GPUs
-
-# Update execution status
-if 'update_status' in globals():
-    update_status("setup_complete")
 
 # %%
 # SECTION 1 (cont): Import required libraries
@@ -255,9 +215,8 @@ try:
         data['train'] = data['train'].shuffle(seed=42).select(range(min(DEBUG_SAMPLE_SIZE, len(data['train']))))
         print(f"✓ Reduced dataset size: {len(data['train'])} examples")
     
-    # Update execution status
-    if 'update_status' in globals():
-        update_status("data_loaded")
+    # Data loading completed
+    print("✓ Data loaded successfully")
         
 except Exception as e:
     print(f"❌ Fatal error loading dataset: {e}")
@@ -761,14 +720,12 @@ print("="*80)
 
 print("🤖 Initializing model with quantization...")
 
-# Check if required dependencies are available when running in Jupyter (non-sequential mode)
-if not IS_KAGGLE:
-    required_vars = ['tokenizer', 'tokenized_train', 'tokenized_val', 'LORA_R', 'LORA_ALPHA', 'LORA_DROPOUT']
-    missing_vars = [var for var in required_vars if var not in globals()]
-    if missing_vars:
-        print(f"⚠️ WARNING: Some required variables are not defined: {', '.join(missing_vars)}")
-        print("When running in Jupyter, make sure all previous data preparation cells were executed.")
-        print("Proceeding anyway as this might be running in sequential mode...")
+# Verify all required dependencies are available
+required_vars = ['tokenizer', 'tokenized_train', 'tokenized_val', 'LORA_R', 'LORA_ALPHA', 'LORA_DROPOUT']
+missing_vars = [var for var in required_vars if var not in globals()]
+if missing_vars:
+    print(f"⚠️ WARNING: Some required variables are not defined: {', '.join(missing_vars)}")
+    print("Make sure all previous data preparation cells were executed.")
 
 # Create a flag to track which quantization method we're using
 USING_AQLM = False
@@ -909,9 +866,8 @@ print(f"Model architecture: {model.__class__.__name__}")
 print(f"Total parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
 print(f"Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6:.2f}M")
 
-# Update execution status
-if 'update_status' in globals():
-    update_status("model_initialized")
+# Model initialization complete
+print("✓ Model initialized successfully")
 
 # %%
 # SECTION 4: TRAINER SETUP - Configure the training parameters
@@ -921,15 +877,13 @@ print("="*80)
 
 print("🔧 Creating trainer and configuring training parameters...")
 
-# Verify dependencies when running in Jupyter mode
-if not IS_KAGGLE:
-    required_vars = ['model', 'training_args', 'tokenized_train', 'tokenized_val', 
-                     'tokenizer', 'data_collator', 'early_stopping_callback']
-    missing_vars = [var for var in required_vars if var not in globals()]
-    if missing_vars:
-        print(f"⚠️ WARNING: Missing required variables: {', '.join(missing_vars)}")
-        print("When running in Jupyter, make sure to run all previous cells first.")
-        print("Proceeding anyway as this might be running in sequential mode...")
+# Verify all required dependencies are available
+required_vars = ['model', 'training_args', 'tokenized_train', 'tokenized_val', 
+                 'tokenizer', 'data_collator', 'early_stopping_callback']
+missing_vars = [var for var in required_vars if var not in globals()]
+if missing_vars:
+    print(f"⚠️ WARNING: Missing required variables: {', '.join(missing_vars)}")
+    print("Make sure to run all previous cells first.")
 
 # Create trainer
 trainer = Trainer(
@@ -944,9 +898,8 @@ trainer = Trainer(
 
 print("✅ Trainer setup complete")
 
-# Update execution status
-if 'update_status' in globals():
-    update_status("trainer_created")
+# Trainer creation complete
+print("✓ Trainer created successfully")
     
 print("Ready to start training...")
 
@@ -969,8 +922,8 @@ def monitor_resources():
     print(f"Process Memory: {memory_info.rss / 1024 / 1024:.2f} MB")
     print(f"System Memory: {mem.percent}% used, {mem.available / 1024 / 1024:.2f} MB available\n")
 
-# Verify trainer is initialized when running in Jupyter mode
-if not IS_KAGGLE and ('trainer' not in globals() or trainer is None):
+# Verify trainer is initialized
+if 'trainer' not in globals() or trainer is None:
     print("⚠️ ERROR: Trainer not initialized. Please run the trainer setup cell first.")
     if 'model' not in globals():
         print("⚠️ ERROR: Model not initialized. Please run the model initialization cell first.")
@@ -1096,9 +1049,8 @@ This quantized model reduces memory usage significantly while maintaining most o
 """)
         print("✅ Model documentation created")
     
-    # Update execution status
-    if 'update_status' in globals():
-        update_status("training_complete")
+    # Training complete
+    print("✓ Training completed successfully")
     
     # Clean up memory
     print("🧹 Cleaning up memory...")
@@ -1116,10 +1068,8 @@ except Exception as e:
     print("Resources after error:")
     monitor_resources()
     
-    # Update status to indicate failure
-    if 'update_status' in globals():
-        EXECUTION_STATUS["training_error"] = True
-        print("Training failed. Please check the error message above.")
+    # Training failed
+    print("Training failed. Please check the error message above.")
     
     raise
 
@@ -1130,13 +1080,11 @@ print("SECTION 6: MODEL TESTING")
 print("="*80)
 
 # Verify required components are available
-if not IS_KAGGLE:
-    required_test_vars = ['model', 'tokenizer', 'device', 'QUANT_BITS', 'quant_method']
-    missing_vars = [var for var in required_test_vars if var not in globals()]
-    if missing_vars:
-        print(f"⚠️ WARNING: Missing required variables: {', '.join(missing_vars)}")
-        print("When running in Jupyter, make sure you've completed the training process first.")
-        print("Proceeding anyway as this might be running in sequential mode...")
+required_test_vars = ['model', 'tokenizer', 'device', 'QUANT_BITS', 'quant_method']
+missing_vars = [var for var in required_test_vars if var not in globals()]
+if missing_vars:
+    print(f"⚠️ WARNING: Missing required variables: {', '.join(missing_vars)}")
+    print("Make sure you've completed the training process first.")
 
 try:
     print(f"🧪 Testing the {QUANT_BITS}-bit {quant_method} quantized model with Swift code examples...")
@@ -1194,9 +1142,8 @@ try:
     print("\n✅ Testing complete! If the responses look good, your model has been trained successfully.")
     print("If you're not satisfied with the quality, you might want to train for more epochs or adjust the training parameters.")
     
-    # Update execution status
-    if 'update_status' in globals():
-        update_status("testing_complete")
+    # Testing complete
+    print("✓ Testing completed successfully")
         
 except Exception as e:
     print(f"❌ Error during testing: {e}")
@@ -1204,9 +1151,8 @@ except Exception as e:
     import traceback
     traceback.print_exc()
     
-    # Update status to indicate testing error
-    if 'update_status' in globals():
-        EXECUTION_STATUS["testing_error"] = True
+    # Testing error
+    print("Testing failed. Please check the error message above.")
 
 # %%
 # SECTION 7: EXECUTION SUMMARY
@@ -1214,28 +1160,8 @@ print("\n" + "="*80)
 print("SECTION 7: EXECUTION SUMMARY")
 print("="*80)
 
-# Print final execution status
-if 'EXECUTION_STATUS' in globals():
-    print("\n📊 Execution Status Summary:")
-    for stage, status in EXECUTION_STATUS.items():
-        if 'error' not in stage:  # Skip error flags in the summary view
-            icon = "✅" if status else "❌"
-            print(f"{icon} {stage.replace('_', ' ').title()}")
-    
-    # Check if we completed successfully
-    core_stages = ['setup_complete', 'data_loaded', 'model_initialized', 
-                  'trainer_created', 'training_complete', 'testing_complete']
-    success = all(EXECUTION_STATUS.get(stage, False) for stage in core_stages)
-    
-    if success:
-        print("\n🎉 SUCCESS: Complete training pipeline executed successfully!")
-    else:
-        print("\n⚠️ INCOMPLETE: Some stages of the pipeline did not complete.")
-        # Find the first incomplete stage
-        for stage in core_stages:
-            if not EXECUTION_STATUS.get(stage, False):
-                print(f"First incomplete stage: {stage.replace('_', ' ').title()}")
-                break
+# Print final summary without execution tracking
+print("\n🎉 Training pipeline execution completed!")
 
 print("\n📋 Final Summary:")
 print(f"- Model: {MODEL_NAME}")
