@@ -826,6 +826,10 @@ print(f"Total parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}
 print(f"Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6:.2f}M")
 
 # %%
+# Check if model is defined before creating trainer
+if 'model' not in locals() or model is None:
+    raise NameError("'model' variable is not defined. Please run the model initialization cell first.")
+
 # Create trainer
 trainer = Trainer(
     model=model,
