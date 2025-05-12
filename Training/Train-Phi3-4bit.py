@@ -671,6 +671,48 @@ data_collator = CustomDataCollatorForLanguageModeling(
 )
 
 # %%
+# Load model with 4-bit quantization
+print(f"Loading {MODEL_NAME} with 4-bit quantization...")
+
+# Configure BitsAndBytes for 4-bit quantization
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.float16,
+    bnb_4bit_use_double_quant=True
+)
+
+# Load model with BitsAndBytes 4-bit quantization
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_NAME,
+    quantization_config=bnb_config,
+    device_map="auto" if torch.cuda.is_available() else None,
+    torch_dtype=torch.float16,
+    trust_remote_code=True,
+    use_cache=False  # Disable KV cache during training for better memory efficiency
+)
+
+# Configure LoRA for fine-tuning
+print("Setting up LoRA fine-tuning...")
+lora_config = LoraConfig(
+    r=LORA_R,
+    lora_alpha=LORA_ALPHA,
+    lora_dropout=LORA_DROPOUT,
+    bias="none",
+    task_type="CAUSAL_LM",
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+)
+
+# Prepare the model for training with LoRA
+model = prepare_model_for_kbit_training(model)
+model = get_peft_model(model, lora_config)
+
+# Print information about the quantized model
+print(f"Model loaded and configured with 4-bit quantization and LoRA (rank={LORA_R})")
+print(f"Model architecture: {model.__class__.__name__}")
+print(f"Total parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
+print(f"Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6:.2f}M")
+
 # Create trainer
 trainer = Trainer(
     model=model,
