@@ -686,6 +686,17 @@ data_collator = CustomDataCollatorForLanguageModeling(
 )
 
 # %%
+# IMPORTANT: This cell MUST be executed AFTER the data preparation cells and BEFORE the trainer cell
+# If you get a NameError when running the trainer cell, make sure to run this cell first!
+
+# Check if the required dependencies for model initialization are available
+for var_name in ['tokenizer', 'tokenized_train', 'tokenized_val', 'LORA_R', 'LORA_ALPHA', 'LORA_DROPOUT']:
+    if var_name not in locals() and var_name not in globals():
+        raise NameError(f"Required variable '{var_name}' is not defined. Please run the previous cells first.")
+
+print("✓ All prerequisites for model initialization are available")
+print("➜ Initializing model with quantization - this may take a few minutes...")
+
 # Create a flag to track which quantization method we're using
 USING_AQLM = False
 QUANT_BITS = 2  # Default to 2-bit quantization
@@ -824,8 +835,25 @@ print(f"Model loaded and configured with {QUANT_BITS}-bit {quant_method} quantiz
 print(f"Model architecture: {model.__class__.__name__}")
 print(f"Total parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
 print(f"Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6:.2f}M")
+print("\n✓ Model initialization complete - you can now run the trainer cell")
 
 # %%
+# IMPORTANT: This cell initializes the Trainer and MUST be executed AFTER the model initialization cell
+# This is the proper execution sequence for this notebook:
+# 1. Run all data preparation cells (dataset loading, tokenization)
+# 2. Run the model initialization cell
+# 3. Run this trainer cell
+# 4. Run the training cell
+
+# Check if all required components are defined before creating trainer
+required_vars = ['model', 'training_args', 'tokenized_train', 'tokenized_val', 
+                'tokenizer', 'data_collator', 'early_stopping_callback']
+
+missing_vars = [var for var in required_vars if var not in locals() or locals()[var] is None]
+if missing_vars:
+    raise NameError(f"The following required variables are not defined: {', '.join(missing_vars)}. "
+                   f"Please make sure to run all previous cells in the correct order.")
+
 # Create trainer
 trainer = Trainer(
     model=model,
@@ -837,7 +865,8 @@ trainer = Trainer(
     callbacks=[early_stopping_callback]
 )
 
-print("Training setup complete")
+print("✓ Trainer initialization complete")
+print("➜ You can now run the next cell to start training")
 
 
 # %%
@@ -855,9 +884,25 @@ def monitor_resources():
 
 
 # %%
+# IMPORTANT: This cell runs the training and MUST be executed AFTER the trainer initialization cell
+# Execution sequence:
+# 1. Data preparation cells
+# 2. Model initialization cell
+# 3. Trainer initialization cell
+# 4. THIS CELL (training)
+
+# Check if trainer and required variables are defined
+if 'trainer' not in locals() or trainer is None:
+    raise NameError("'trainer' variable is not defined. Please run the trainer initialization cell first.")
+
+for var_name in ['monitor_resources', 'cleanup_memory', 'QUANT_BITS', 'quant_method']:
+    if var_name not in locals() and var_name not in globals():
+        raise NameError(f"Required variable '{var_name}' is not defined. Please make sure all previous cells were executed.")
+
 # Run training with enhanced memory monitoring for multi-GPU setup
 try:
-    print("Starting training...")
+    print("🔄 Starting training process...")
+    print("This may take a while depending on your dataset size and hardware.")
     
     # Monitor resources before training
     print("Resources before training:")
@@ -879,9 +924,11 @@ try:
     start_time = time.time()
     
     # Run training
+    print("\n⏳ Training model - this will take some time...")
     train_result = trainer.train()
     
     # Monitor resources after training
+    print("\n✓ Training complete!")
     print("Resources after training:")
     monitor_resources()
     
@@ -890,8 +937,9 @@ try:
     print(f"Training loss: {train_result.metrics['train_loss']:.4f}")
     
     # Save the model with appropriate method based on quantization used
+    print("\n💾 Saving model...")
     trainer.save_model("./phi3_swift_model")
-    print(f"Model saved to ./phi3_swift_model ({QUANT_BITS}-bit {quant_method} quantized)")
+    print(f"✓ Model saved to ./phi3_swift_model ({QUANT_BITS}-bit {quant_method} quantized)")
     
     # Save model configuration details
     with open("./phi3_swift_model/quantization_config.json", "w") as f:
@@ -984,9 +1032,25 @@ except Exception as e:
     raise
 
 # %%
+# IMPORTANT: This cell tests the trained model and should be run AFTER the training is complete
+# Execution sequence:
+# 1. Data preparation cells
+# 2. Model initialization cell
+# 3. Trainer initialization cell
+# 4. Training cell
+# 5. THIS CELL (testing)
+
+# Check if required variables for testing are defined
+required_test_vars = ['model', 'tokenizer', 'device', 'QUANT_BITS', 'quant_method']
+missing_vars = [var for var in required_test_vars if var not in locals() and var not in globals()]
+if missing_vars:
+    raise NameError(f"The following required variables are not defined: {', '.join(missing_vars)}. "
+                   f"Please make sure all previous cells were executed.")
+
 # Test the model with Swift code examples
 try:
-    print(f"Testing the {QUANT_BITS}-bit {quant_method} quantized model with Swift code examples...")
+    print(f"🧪 Testing the {QUANT_BITS}-bit {quant_method} quantized model with Swift code examples...")
+    print(f"This will generate responses to several Swift programming questions to evaluate the model's capabilities.")
     
     # For testing, we use the model we already have loaded
     test_model = model
@@ -1028,13 +1092,22 @@ try:
     
     # Generate and print responses
     for i, prompt in enumerate(test_prompts):
-        print(f"\nTest {i+1}:\n{'-'*40}")
+        print(f"\n📝 Test {i+1}:\n{'-'*40}")
         print(f"Prompt: {prompt.split('<|assistant|>')[0].replace('<|user|>', '')}")
+        
+        print("\nGenerating response...")
         response = generate_response(prompt)
+        
         print(f"\nResponse:\n{response}\n")
     
-    print("\nTesting complete")
+    print("\n✅ Testing complete! If the responses look good, your model has been trained successfully.")
+    print("If you're not satisfied with the quality, you might want to train for more epochs or adjust the training parameters.")
 except Exception as e:
-    print(f"Error during testing: {e}")
+    print(f"❌ Error during testing: {e}")
+    print("Detailed error information:")
     import traceback
     traceback.print_exc()
+    
+print("\n🎉 Notebook execution complete! Your model is ready to use.")
+print(f"📁 Model saved at: ./phi3_swift_model")
+print("You can now use this model for Swift programming tasks or further fine-tuning.")
